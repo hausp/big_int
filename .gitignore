@@ -1,3 +1,8 @@
+# Makefile generated
+.deps/
+build/
+bin/
+
 # Prerequisites
 *.d
 
