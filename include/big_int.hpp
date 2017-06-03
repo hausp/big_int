@@ -5,18 +5,24 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
-#include <ostream>
 #include <string>
+#include <ostream>
 #include <tuple>
 #include <vector>
 
 namespace hausp {
     class big_int {
+        // Friend non-member operators
         friend std::ostream& operator<<(std::ostream&, const big_int&);
+        friend bool operator==(const big_int&, const big_int&);
+        friend bool operator<(const big_int&, const big_int&);
+        // Aliases
         using UNIT = uint32_t;
         using num_vector = std::vector<UNIT>;
+        // Constant values
         static constexpr auto UNIT_MAX = 999999999ULL;
         static constexpr auto UNIT_RADIX = 1000000000ULL;
+        static constexpr auto PRIMITIVE_MAX = UINT32_MAX;
      public:
         big_int() = default;
         template<typename T, std::enable_if_t<std::is_signed<T>::value, int> = 0>
@@ -24,9 +30,6 @@ namespace hausp {
         template<typename T, std::enable_if_t<std::is_unsigned<T>::value, int> = 0>
         big_int(T);
         big_int(const std::string&);
-
-        operator std::string() const;
-
      private:
         num_vector data = {};
         bool sign = false;
@@ -78,6 +81,44 @@ namespace hausp {
             }
         }
         return data;
+    }
+
+    inline bool operator==(const big_int& lhs, const big_int& rhs) {
+        if (lhs.sign != rhs.sign) {
+            return false;
+        } else if (lhs.data.size() == rhs.data.size()) {
+            size_t i = lhs.data.size() - 1;
+            while (i > 0 && lhs.data[i] == rhs.data[i]) --i;
+            return i == 0 && lhs.data[i] == rhs.data[i];
+        }
+        return false;
+    }
+
+    inline bool operator!=(const big_int& lhs, const big_int rhs) {
+        return !(lhs == rhs);
+    }
+
+    inline bool operator<(const big_int& lhs, const big_int& rhs) {
+        if (lhs.sign != rhs.sign) {
+            return lhs.sign;
+        } else if (lhs.data.size() == rhs.data.size()) {
+            size_t i = lhs.data.size() - 1;
+            while (i > 0 && lhs.data[i] == rhs.data[i]) --i;
+            return lhs.data[i] < rhs.data[i];
+        }
+        return lhs.data.size() < rhs.data.size();
+    }
+
+    inline bool operator>(const big_int& lhs, const big_int& rhs) {
+        return rhs < lhs;
+    }
+
+    inline bool operator<=(const big_int& lhs, const big_int& rhs) {
+        return !(lhs > rhs);
+    }
+
+    inline bool operator>=(const big_int& lhs, const big_int& rhs) {
+        return !(lhs < rhs);
     }
 
     inline std::ostream& operator<<(std::ostream& out, const big_int& number) {
