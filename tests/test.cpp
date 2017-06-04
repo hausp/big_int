@@ -16,7 +16,7 @@ const std::vector<std::string>& sampleNumbers() {
 
     if (!prepared) {
         std::stringstream ss;
-        for (size_t i = 0; i < 300; i++) {
+        for (size_t i = 0; i < 150; i++) {
             ss << "123456781234567812345678";
         }
         numbers.push_back(ss.str());
@@ -101,43 +101,43 @@ TEST_F(Tests, Inequalities) {
     ASSERT_TRUE(n3 > n1);
 }
 
-// TEST_F(Tests, Shifts) {
-//     std::unordered_map<size_t, big_int> powers = {
-//         {1, 2},
-//         {2, 4},
-//         {3, 8},
-//         {4, 16},
-//         {5, 32},
-//         {100, fs("1267650600228229401496703205376")},
-//         {150, fs("1427247692705959881058285969449495136382746624")},
-//         {200, fs("1606938044258990275541962092341162602522202993782792835301376")}
-//     };
+TEST_F(Tests, Shifts) {
+    std::unordered_map<size_t, big_int> powers = {
+        {1, 2},
+        {2, 4},
+        {3, 8},
+        {4, 16},
+        {5, 32},
+        {100, fs("1267650600228229401496703205376")},
+        {150, fs("1427247692705959881058285969449495136382746624")},
+        {200, fs("1606938044258990275541962092341162602522202993782792835301376")}
+    };
 
-//     auto n = big_int(1);
-//     for (size_t i = 1; i <= 200; i++) {
-//         n <<= 1;
-//         if (powers.count(i) > 0) {
-//             ASSERT_EQ(n, powers[i]);
-//         }
-//     }
+    auto n = big_int(1);
+    for (size_t i = 1; i <= 200; i++) {
+        n <<= 1;
+        if (powers.count(i) > 0) {
+            ASSERT_EQ(n, powers[i]);
+        }
+    }
 
-//     for (size_t i = 199; i > 0; i--) {
-//         n >>= 1;
-//         if (powers.count(i) > 0) {
-//             ASSERT_EQ(n, powers[i]);
-//         }
-//     }
+    for (size_t i = 199; i > 0; i--) {
+        n >>= 1;
+        if (powers.count(i) > 0) {
+            ASSERT_EQ(n, powers[i]);
+        }
+    }
 
-//     auto a = fs("46819283774865195682109389689290389645910928367102845391784");
-//     auto b = fs("365775654491134341266479606947581169108679127867990979623");
-//     auto c = fs("46819283774865195682109389689290389645910928367102845391744");
-//     ASSERT_EQ(a >> 7, b);
-//     ASSERT_EQ(b << 7, c);
-//     ASSERT_EQ(a >> 2 >> 3 >> 1, b);
-//     ASSERT_EQ(b << 3 << 4, c);
-//     ASSERT_EQ(a >> 2 >> 2 >> 1 >> 2, b);
-//     ASSERT_EQ(b << 2 << 2 << 1 << 2, c);
-// }
+    auto a = fs("46819283774865195682109389689290389645910928367102845391784");
+    auto b = fs("365775654491134341266479606947581169108679127867990979623");
+    auto c = fs("46819283774865195682109389689290389645910928367102845391744");
+    ASSERT_EQ(a >> 7, b);
+    ASSERT_EQ(b << 7, c);
+    ASSERT_EQ(a >> 2 >> 3 >> 1 >> 1, b);
+    ASSERT_EQ(b << 3 << 4, c);
+    ASSERT_EQ(a >> 2 >> 2 >> 1 >> 2, b);
+    ASSERT_EQ(b << 2 << 2 << 1 << 2, c);
+}
 
 // TEST_F(Tests, AddAndSub) {
 //     auto n1 = fs(repeat(1, 1000));

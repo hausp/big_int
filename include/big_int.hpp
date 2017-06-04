@@ -18,14 +18,13 @@ namespace hausp {
         friend bool operator==(const big_int&, const big_int&);
         friend bool operator<(const big_int&, const big_int&);
         // Aliases
-        using GROUP = uint32_t;
-        using DOUBLE_GROUP = uint64_t;
-        using num_vector = std::deque<GROUP>;
+        using Group = uint32_t;
+        using DoubleGroup = uint64_t;
+        using GroupVector = std::deque<Group>;
         // Constant values
         static constexpr auto GROUP_MAX = 0xffffffff;
         static constexpr auto GROUP_RADIX = 0x100000000;
         static constexpr auto GROUP_BIT_SIZE = 32;
-        static constexpr auto DEC_GROUP_MAX = 10;
      public:
         big_int() = default;
         template<typename T, std::enable_if_t<std::is_signed<T>::value, int> = 0>
@@ -35,14 +34,15 @@ namespace hausp {
 
         static big_int from_string(const std::string&);
         big_int& operator+=(const big_int&);
-        big_int& operator<<=(DOUBLE_GROUP);
+        big_int& operator<<=(uintmax_t);
+        big_int& operator>>=(uintmax_t);
      private:
-        num_vector data = {0};
+        GroupVector data = {0};
         bool sign = false;
 
         std::pair<big_int, size_t> double_dabble() const;
-        static num_vector convert_base(DOUBLE_GROUP);
-        static num_vector convert_base(const std::string&);
+        static GroupVector convert_base(DoubleGroup);
+        static GroupVector convert_base(const std::string&);
     };
 
     template<typename T, std::enable_if_t<std::is_signed<T>::value, int>>
@@ -68,8 +68,8 @@ namespace hausp {
         return integer;
     }
 
-    inline big_int::num_vector big_int::convert_base(DOUBLE_GROUP value) {
-        num_vector data;
+    inline big_int::GroupVector big_int::convert_base(DoubleGroup value) {
+        GroupVector data;
         if (value != 0) {
             while (value > 0) {
                 data.push_back(value & GROUP_MAX);
@@ -81,8 +81,8 @@ namespace hausp {
         return data;
     }
 
-    inline big_int::num_vector big_int::convert_base(const std::string& str_value) {
-        num_vector data;
+    inline big_int::GroupVector big_int::convert_base(const std::string& str_value) {
+        GroupVector data;
         auto i = str_value.size();
         while (i > 0) {
             if (i > 8) {
@@ -96,7 +96,7 @@ namespace hausp {
         size_t k = 0;
         while (k < data.size()) {
             for (size_t i = data.size() - 1; i > k; --i) {
-                DOUBLE_GROUP true_value = data[i] * 1000000000ull;
+                DoubleGroup true_value = data[i] * 1000000000ull;
                 true_value += data[i - 1];
                 data[i - 1] = true_value;
                 data[i] = true_value >> (GROUP_BIT_SIZE);
@@ -113,6 +113,8 @@ namespace hausp {
         } else if (lhs.data.size() == rhs.data.size()) {
             size_t i = lhs.data.size() - 1;
             while (i > 0 && lhs.data[i] == rhs.data[i]) --i;
+            // std::cout << "lhs.data[i] = " << lhs.data[i] << std::endl;
+            // std::cout << "rhs.data[i] = " << rhs.data[i] << std::endl;
             return i == 0 && lhs.data[i] == rhs.data[i];
         }
         return false;
@@ -145,15 +147,15 @@ namespace hausp {
         return !(lhs < rhs);
     }
 
-    inline big_int& big_int::operator<<=(DOUBLE_GROUP shift) {
-        DOUBLE_GROUP digit_shift = std::floor(shift / GROUP_BIT_SIZE);
+    inline big_int& big_int::operator<<=(uintmax_t shift) {
+        uintmax_t digit_shift = std::floor(shift / GROUP_BIT_SIZE);
         shift = shift % GROUP_BIT_SIZE;
 
         for (size_t i = 0; i < digit_shift; ++i) data.push_front(0);
         
         auto shift_mask = (-1) ^ ((2 << (GROUP_BIT_SIZE - shift - 1)) - 1);
 
-        GROUP carried_bits = 0;
+        Group carried_bits = 0;
         for (auto& digit : data) {
             auto shifted_bits = (digit & shift_mask) >> (GROUP_BIT_SIZE - shift);
             digit = ((digit << shift) | carried_bits);
@@ -163,13 +165,46 @@ namespace hausp {
         if (carried_bits > 0) data.push_back(carried_bits);
 
         return *this;
+    };
+
+    inline big_int& big_int::operator>>=(uintmax_t shift) {
+        uintmax_t digit_shift = std::floor(shift / GROUP_BIT_SIZE);
+        shift = shift % GROUP_BIT_SIZE;
+
+        for (size_t i = 0; i < digit_shift; ++i) {
+            data.push_back(0);
+            data.pop_front();
+        }
+        
+        auto shift_mask = (1 << shift) - 1;
+
+        Group carried_bits = 0;
+        for (int i = data.size() - 1; i >= 0; --i) {
+            auto shifted_bits = data[i] & shift_mask;
+            data[i] = ((data[i] >> shift) | carried_bits);
+            carried_bits = shifted_bits << (GROUP_BIT_SIZE - shift);
+        }
+
+        while (data.back() == 0) data.pop_back();
+
+        return *this;
+    };
+
+    inline big_int operator<<(const big_int& lhs, uintmax_t rhs) {
+        auto result = lhs;
+        return result <<= rhs;
+    }
+
+    inline big_int operator>>(const big_int& lhs, uintmax_t rhs) {
+        auto result = lhs;
+        return result >>= rhs;
     }
 
     inline std::pair<big_int, size_t> big_int::double_dabble() const {
         auto bit_size = data.size() * GROUP_BIT_SIZE;
         // auto needed_space = (bit_size + 4) * std::ceil(bit_size / 3);
         // auto extra_digits = std::ceil((needed_space - bit_size) / GROUP_BIT_SIZE);
-        auto nibble_masks = std::vector<big_int::GROUP> {
+        auto nibble_masks = std::vector<Group> {
             0xf, 0xf0, 0xf00, 0xf000, 0xf0000, 0xf00000, 0xf000000, 0xf0000000
         };
         big_int reg;
@@ -195,8 +230,13 @@ namespace hausp {
         return {reg, data.size()};
     }
 
+    template<typename... Args>
+    big_int stobi(Args&&... args) {
+        return big_int::from_string(std::forward<Args>(args)...);
+    }
+
     inline std::ostream& operator<<(std::ostream& out, const big_int& number) {
-        auto nibble_masks = std::vector<big_int::GROUP> {
+        auto nibble_masks = std::vector<big_int::Group> {
             0xf, 0xf0, 0xf00, 0xf000, 0xf0000, 0xf00000, 0xf000000, 0xf0000000
         };
         
