@@ -14,7 +14,6 @@
 namespace hausp {
     class big_int {
         // Friend non-member operators
-        friend big_int operator+(const big_int&, const big_int&);
         friend std::ostream& operator<<(std::ostream&, const big_int&);
         friend bool operator==(const big_int&, const big_int&);
         friend bool operator<(const big_int&, const big_int&);
@@ -118,9 +117,8 @@ namespace hausp {
 
     inline big_int::GroupVector big_int::to_decimal() const {
         GroupVector dec_data = data;
-        if (negative) {
-            two_complement(dec_data);
-        }
+        if (negative) two_complement(dec_data);
+        
         size_t k = 0;
         while (k < dec_data.size()) {
             for (size_t i = dec_data.size() - 1; i > k; --i) {
@@ -141,11 +139,13 @@ namespace hausp {
             }
             k++;
         }
+
         if (dec_data.back() > 1000000000ull) {
             auto q = dec_data.back() / 1000000000ull;
             dec_data.back() = dec_data.back() % 1000000000ull;
             dec_data.push_back(q);
         }
+
         return dec_data;
     }
 
@@ -156,8 +156,9 @@ namespace hausp {
             group = complement;
             carry = complement >> GROUP_BIT_SIZE;
         }
+        
         if (carry > 0) {
-            data.emplace_back(carry);
+            data.emplace_back(GROUP_MAX);
         } else {
             while (data.back() == 0 && data.size() > 1) data.pop_back();
         }
@@ -206,11 +207,13 @@ namespace hausp {
         Group last = data.back();
         DoubleGroup carry = 0;
         auto min = std::min(data.size(), rhs.data.size());
+        
         for (size_t i = 0; i < min; ++i) {
             DoubleGroup result = data[i] + carry + rhs.data[i];
             data[i] = result;
             carry = result >> GROUP_BIT_SIZE;
         }
+        
         size_t i = min;
         if (data.size() >= rhs.data.size()) {
             while (i < data.size() && carry != 0) {
@@ -227,11 +230,13 @@ namespace hausp {
                 i++;
             }
         }
+        
         if (negative ^ rhs.negative) {
-            negative = size > data.size() || last < data.back();
+            negative = size < data.size() || last < data.back();
         } else if (carry > 0 && !negative) {
             data.emplace_back(carry);
         }
+        
         auto comparison = negative ? GROUP_MAX : 0;
         while (data.back() == comparison && data.size() > 1) data.pop_back();
         return *this;
@@ -250,18 +255,13 @@ namespace hausp {
     }
 
     inline big_int operator+(const big_int& lhs, const big_int& rhs) {
-        if (lhs.data.size() > rhs.data.size()) {
-            auto copy = lhs;
-            return copy += rhs;
-        } else {
-            auto copy = rhs;
-            return copy += lhs;
-        }
+        auto copy = lhs;
+        return copy += rhs;
     }
 
     inline big_int operator-(const big_int& lhs, const big_int& rhs) {
-            auto copy = lhs;
-            return copy -= rhs;
+        auto copy = lhs;
+        return copy -= rhs;
     }
 
     inline big_int& big_int::operator<<=(uintmax_t shift) {
@@ -286,12 +286,17 @@ namespace hausp {
                 auto validation = carried_bits ^ mask;
                 if (validation) {
                     data.emplace_back(carried_bits | ~validation);
+                } else {
+                    while (data.back() == GROUP_MAX && data.size() > 1) {
+                        data.pop_back();
+                    }
                 }
             } else {
                 data.emplace_back(carried_bits);
             }
         }
-        while (data.back() == GROUP_MAX && data.size() > 1) data.pop_back();
+
+        while (data.back() == 0 && data.size() > 1) data.pop_back();
 
         return *this;
     };
