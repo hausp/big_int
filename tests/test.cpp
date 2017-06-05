@@ -16,7 +16,7 @@ const std::vector<std::string>& sampleNumbers() {
 
     if (!prepared) {
         std::stringstream ss;
-        for (size_t i = 0; i < 150; i++) {
+        for (size_t i = 0; i < 300; i++) {
             ss << "123456781234567812345678";
         }
         numbers.push_back(ss.str());
@@ -139,33 +139,33 @@ TEST_F(Tests, Shifts) {
     ASSERT_EQ(b << 2 << 2 << 1 << 2, c);
 }
 
-// TEST_F(Tests, AddAndSub) {
-//     auto n1 = fs(repeat(1, 1000));
-//     auto n2 = fs(repeat(2, 1000));
-//     auto n3 = fs(repeat(3, 1000));
+TEST_F(Tests, AddAndSub) {
+    auto n1 = fs(repeat(1, 1000));
+    auto n2 = fs(repeat(2, 1000));
+    auto n3 = fs(repeat(3, 1000));
 
-//     ASSERT_EQ(n1 + n1, n2);
-//     ASSERT_EQ(n1 + n2, n3);
-//     ASSERT_EQ(n3 - n1, n2);
-//     ASSERT_EQ(n3 - n2, n1);
-//     ASSERT_EQ(n1 - n2, -n1);
-//     ASSERT_EQ(n1 + n1 + n1, n3);
+    ASSERT_EQ(n1 + n1, n2);
+    ASSERT_EQ(n1 + n2, n3);
+    ASSERT_EQ(n3 - n1, n2);
+    ASSERT_EQ(n3 - n2, n1);
+    ASSERT_EQ(n1 - n2, -n1);
+    ASSERT_EQ(n1 + n1 + n1, n3);
 
-//     ASSERT_EQ(
-//         fs("1" + repeat(0, 100)) - fs(repeat(9, 100)),
-//         big_int(1)
-//     );
+    ASSERT_EQ(
+        fs("1" + repeat(0, 100)) - fs(repeat(9, 100)),
+        big_int(1)
+    );
 
-//     ASSERT_EQ(
-//         fs(repeat(9, 100)) - fs("1" + repeat(0, 100)),
-//         big_int(-1)
-//     );
+    ASSERT_EQ(
+        fs(repeat(9, 100)) - fs("1" + repeat(0, 100)),
+        big_int(-1)
+    );
 
-//     ASSERT_EQ(
-//         fs(repeat(4, 123)) + fs(repeat(5, 123)) + fs(repeat(1, 123)),
-//         fs(repeat(1, 123) + "0")
-//     );
-// }
+    ASSERT_EQ(
+        fs(repeat(4, 123)) + fs(repeat(5, 123)) + fs(repeat(1, 123)),
+        fs(repeat(1, 123) + "0")
+    );
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
