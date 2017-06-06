@@ -23,6 +23,7 @@ namespace hausp {
         using DoubleGroup = uint64_t;
         using GroupVector = std::deque<Group>;
         // Constant values
+        static constexpr auto GROUP_LSB = 0x00000001;
         static constexpr auto GROUP_MAX = 0xffffffff;
         static constexpr auto GROUP_RADIX = 0x100000000;
         static constexpr auto GROUP_BIT_SIZE = 32;
@@ -45,6 +46,7 @@ namespace hausp {
         static GroupVector convert_base(intmax_t);
         static GroupVector convert_base(const std::string&);
         static void two_complement(GroupVector&);
+        void shrink();
     };
 
     template<typename T, std::enable_if_t<std::is_integral<T>::value, int>>
@@ -164,6 +166,13 @@ namespace hausp {
         }
     }
 
+    inline void big_int::shrink() {
+        Group lhs_signal = negative ? GROUP_MAX : 0;
+        while (data.back() == lhs_signal && data.size() > 1) {
+            data.pop_back();
+        }
+    }
+
     inline bool operator==(const big_int& lhs, const big_int& rhs) {
         if (lhs.negative != rhs.negative) {
             return false;
@@ -203,42 +212,32 @@ namespace hausp {
     }
 
     inline big_int& big_int::operator+=(const big_int& rhs) {
-        size_t size = data.size();
-        Group last = data.back();
-        DoubleGroup carry = 0;
-        auto min = std::min(data.size(), rhs.data.size());
-        
-        for (size_t i = 0; i < min; ++i) {
+        if (data.size() < rhs.data.size()) {
+            Group lhs_signal = negative ? GROUP_MAX : 0;
+            data.insert(data.end(), rhs.data.size(), lhs_signal);
+        }
+        DoubleGroup carry = 0; // Uses DoubleGroup to coerce addition
+        for (size_t i = 0; i < rhs.data.size(); ++i) {
             DoubleGroup result = data[i] + carry + rhs.data[i];
             data[i] = result;
             carry = result >> GROUP_BIT_SIZE;
         }
-        
-        size_t i = min;
-        if (data.size() >= rhs.data.size()) {
-            while (i < data.size() && carry != 0) {
-                DoubleGroup result = data[i] + carry;
-                data[i] = result;
-                carry = result >> GROUP_BIT_SIZE;
-                i++;
-            }
-        } else {
-            while (i < rhs.data.size() && carry != 0) {
-                DoubleGroup result = rhs.data[i] + carry;
-                data.emplace_back(result);
-                carry = result >> GROUP_BIT_SIZE;
-                i++;
-            }
+        size_t i = rhs.data.size();
+        Group rhs_signal = rhs.negative ? GROUP_MAX : 0;
+        while (i < data.size() && carry != 0) {
+            DoubleGroup result = data[i] + carry + rhs_signal;
+            data[i] = result;
+            carry = result >> GROUP_BIT_SIZE;
+            ++i;
         }
-        
-        if (negative ^ rhs.negative) {
-            negative = size < data.size() || last < data.back();
-        } else if (carry > 0 && !negative) {
+        auto sum_of_signal_bits = (negative + rhs.negative + carry);
+        auto carry_out = (sum_of_signal_bits >> 1);
+        negative = sum_of_signal_bits & GROUP_LSB;
+        if (carry_out ^ carry) {
             data.emplace_back(carry);
         }
-        
-        auto comparison = negative ? GROUP_MAX : 0;
-        while (data.back() == comparison && data.size() > 1) data.pop_back();
+        // Is it worthy?
+        shrink();
         return *this;
     }
 
