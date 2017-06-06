@@ -89,6 +89,8 @@ TEST_F(Tests, Inequalities) {
     ASSERT_TRUE(big_int(0) >= big_int(0));
     ASSERT_TRUE(big_int(-1) < big_int(0));
     ASSERT_TRUE(big_int(0) > big_int(-1));
+    ASSERT_FALSE(big_int(0) > big_int(0));
+    ASSERT_FALSE(big_int(0) < big_int(0));
 
     auto n1 = fs("1323089548042380213098650892138790");
     auto n2 = fs("2109428218005820520572960106810672");
@@ -131,6 +133,13 @@ TEST_F(Tests, Shifts) {
     auto a = fs("46819283774865195682109389689290389645910928367102845391784");
     auto b = fs("365775654491134341266479606947581169108679127867990979623");
     auto c = fs("46819283774865195682109389689290389645910928367102845391744");
+    ASSERT_EQ(a >> 0, a);
+    ASSERT_EQ(b >> 0, b);
+    ASSERT_EQ(c >> 0, c);
+    ASSERT_EQ(a << 0, a);
+    ASSERT_EQ(b << 0, b);
+    ASSERT_EQ(c << 0, c);
+
     ASSERT_EQ(a >> 7, b);
     ASSERT_EQ(b << 7, c);
     ASSERT_EQ(a >> 2 >> 3 >> 1 >> 1, b);
@@ -138,25 +147,56 @@ TEST_F(Tests, Shifts) {
     ASSERT_EQ(a >> 2 >> 2 >> 1 >> 2, b);
     ASSERT_EQ(b << 2 << 2 << 1 << 2, c);
 
+    ASSERT_EQ(a << -7, b);
+    ASSERT_EQ(b >> -7, c);
+    ASSERT_EQ(a << -2 << -3 << -1 << -1, b);
+    ASSERT_EQ(b >> -3 >> -4, c);
+    ASSERT_EQ(a << -2 << -2 << -1 << -2, b);
+    ASSERT_EQ(b >> -2 >> -2 >> -1 >> -2, c);
+
+    ASSERT_EQ(a << 2 << -3 << -2 << 3, a);
+    ASSERT_EQ(a >> 2 >> -3 >> -2 >> 3, a);
+
     ASSERT_EQ(big_int(-2) << 31, big_int(-4294967296));
     ASSERT_EQ(big_int(-2) >> 31, big_int(-1));
+    ASSERT_EQ(big_int(-2) >> 999999999, big_int(-1));
+    ASSERT_EQ(big_int(-2) << -999999999, big_int(-1));
 
-    for (long i = -10; i <= 10; i++) {
-        ASSERT_EQ(big_int(i) - 0, big_int(i));
-    }
+    ASSERT_EQ(
+        a << 1 << 2 << 3 << 4 << 5 << 6 << 7 << 8 << 9 << 10
+          >> 5 >> 2 >> 7 >> 1 >> 9 >> 4 >> 3 >> 10 >> 6 >> 8,
+        a
+    );
+
+    ASSERT_EQ(
+        a >> -2 >> -9 >> -3 >> -1 >> -7 >> -10 >> -4 >> -8 >> -6 >> -5
+          << -1 << -2 << -3 << -4 << -5 << -6 << -7 << -8 << -9 << -10,
+        a
+    );
 }
 
 TEST_F(Tests, AddAndSub) {
+    for (long i = -10; i <= 10; i++) {
+        auto value = big_int(i);
+        ASSERT_EQ(value + 0, value);
+        ASSERT_EQ(value - 0, value);
+    }
+
     auto n1 = fs(repeat(1, 1000));
     auto n2 = fs(repeat(2, 1000));
     auto n3 = fs(repeat(3, 1000));
-
     ASSERT_EQ(n1 + n1, n2);
     ASSERT_EQ(n1 + n2, n3);
     ASSERT_EQ(n3 - n1, n2);
     ASSERT_EQ(n3 - n2, n1);
     ASSERT_EQ(n1 - n2, -n1);
     ASSERT_EQ(n1 + n1 + n1, n3);
+    ASSERT_EQ(n1 + 0, n1);
+    ASSERT_EQ(n1 - 0, n1);
+    ASSERT_EQ(n2 + 0, n2);
+    ASSERT_EQ(n2 - 0, n2);
+    ASSERT_EQ(n3 + 0, n3);
+    ASSERT_EQ(n3 - 0, n3);
 
     ASSERT_EQ(
         fs("1" + repeat(0, 100)) - fs(repeat(9, 100)),
