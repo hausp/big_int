@@ -137,6 +137,13 @@ TEST_F(Tests, Shifts) {
     ASSERT_EQ(b << 3 << 4, c);
     ASSERT_EQ(a >> 2 >> 2 >> 1 >> 2, b);
     ASSERT_EQ(b << 2 << 2 << 1 << 2, c);
+
+    ASSERT_EQ(big_int(-2) << 31, big_int(-4294967296));
+    ASSERT_EQ(big_int(-2) >> 31, big_int(-1));
+
+    for (long i = -10; i <= 10; i++) {
+        ASSERT_EQ(big_int(i) - 0, big_int(i));
+    }
 }
 
 TEST_F(Tests, AddAndSub) {
