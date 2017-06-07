@@ -290,14 +290,12 @@ namespace hausp {
 
     inline BigInt& BigInt::operator<<=(intmax_t shift) {
         if (shift < 0) return (*this) >>= std::abs(shift);
-        uintmax_t digit_shift = std::floor(shift / GROUP_BIT_SIZE);
+        uintmax_t group_shift = std::floor(shift / GROUP_BIT_SIZE);
         shift = shift % GROUP_BIT_SIZE;
-
-        for (size_t i = 0; i < digit_shift; ++i) data.emplace_front(0);
-        
+        data.insert(data.cbegin(), group_shift, 0);
         auto shift_mask = ~((2 << (GROUP_BIT_SIZE - shift - 1)) - 1);
-
         Group carried_bits = 0;
+        
         for (auto& digit : data) {
             auto shifted_bits = (digit & shift_mask) >> (GROUP_BIT_SIZE - shift);
             digit = (digit << shift) | carried_bits;
@@ -323,12 +321,16 @@ namespace hausp {
 
     inline BigInt& BigInt::operator>>=(intmax_t shift) {
         if (shift < 0) return (*this) <<= std::abs(shift);
-        uintmax_t digit_shift = std::floor(shift / GROUP_BIT_SIZE);
+        uintmax_t group_shift = std::floor(shift / GROUP_BIT_SIZE);
         shift = shift % GROUP_BIT_SIZE;
 
-        for (size_t i = 0; i < digit_shift; ++i) {
+        if (group_shift > data.size()) {
+            data.clear();
             data.emplace_back(signal.value);
-            data.pop_front();
+        } else {
+            for (size_t i = 0; i < group_shift; ++i) {
+                data.pop_front();
+            }
         }
         
         auto shift_mask = (1 << shift) - 1;
