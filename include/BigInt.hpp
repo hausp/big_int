@@ -54,9 +54,11 @@ namespace hausp {
         Signal signal = false;
         GroupVector data = {0};
 
-        BigInt toDecimal() const;
-        void twoComplement();
         void shrink();
+        void twoComplement();
+        BigInt toDecimal() const;
+        template<typename Operation>
+        BigInt& carryOn(const BigInt&, Operation);
 
         static GroupVector convertBase(uintmax_t);
         static GroupVector convertBase(const std::string&);
@@ -241,26 +243,27 @@ namespace hausp {
         return !(lhs < rhs);
     }
 
-    inline BigInt& BigInt::operator+=(const BigInt& rhs) {
+    template<typename Operation>
+    BigInt& BigInt::carryOn(const BigInt& rhs, Operation op) {
         if (data.size() < rhs.data.size()) {
             data.insert(data.end(), rhs.data.size(), signal.value);
         }
-        DoubleGroup carry = 0; // Uses DoubleGroup to coerce addition
+        DoubleGroup carry = 0; // Uses DoubleGroup to coerce operation
         size_t i = 0;
         for (i = 0; i < rhs.data.size(); ++i) {
-            DoubleGroup result = carry + data[i] + rhs.data[i];
+            DoubleGroup result = op(data[i], rhs.data[i], carry);
             data[i] = result;
-            carry = result >> GROUP_BIT_SIZE;
+            carry = (result >> GROUP_BIT_SIZE) > 0;
         }
         while (i < data.size() && carry != 0) {
-            DoubleGroup result = carry + data[i] + rhs.signal.value;
+            DoubleGroup result = op(data[i], rhs.signal.value, carry);
             data[i] = result;
-            carry = result >> GROUP_BIT_SIZE;
+            carry = (result >> GROUP_BIT_SIZE) > 0;
             ++i;
         }
-        auto sum_of_signals = carry + signal.value + rhs.signal.value;
-        auto carry_out = (sum_of_signals >> GROUP_BIT_SIZE);
-        signal.value = sum_of_signals;
+        auto signal_update = op(signal.value, rhs.signal.value, carry);
+        auto carry_out = (signal_update >> GROUP_BIT_SIZE) > 0;
+        signal.value = signal_update;
         if (carry_out ^ carry) {
             data.emplace_back(carry);
         }
@@ -268,8 +271,16 @@ namespace hausp {
         return *this;
     }
 
+    inline BigInt& BigInt::operator+=(const BigInt& rhs) {
+        return carryOn(rhs, [](Group lhs, Group rhs, DoubleGroup carry) {
+            return carry + lhs + rhs;
+        });
+    }
+
     inline BigInt& BigInt::operator-=(const BigInt& rhs) {
-        return (*this) += (-rhs);
+        return carryOn(rhs, [](Group lhs, Group rhs, DoubleGroup carry) {
+            return -carry + lhs - rhs;
+        });
     }
 
     inline BigInt BigInt::operator-() const {
@@ -289,13 +300,16 @@ namespace hausp {
     }
 
     inline BigInt& BigInt::operator<<=(intmax_t shift) {
-        if (shift < 0) return (*this) >>= std::abs(shift);
+        if (shift < 0) {
+            return (*this) >>= std::abs(shift);
+        }
+        
         uintmax_t group_shift = std::floor(shift / GROUP_BIT_SIZE);
-        shift = shift % GROUP_BIT_SIZE;
         data.insert(data.cbegin(), group_shift, 0);
+        shift = shift % GROUP_BIT_SIZE;        
         auto shift_mask = ~((2 << (GROUP_BIT_SIZE - shift - 1)) - 1);
         Group carried_bits = 0;
-        
+
         for (auto& digit : data) {
             auto shifted_bits = (digit & shift_mask) >> (GROUP_BIT_SIZE - shift);
             digit = (digit << shift) | carried_bits;
@@ -304,11 +318,10 @@ namespace hausp {
 
         if (carried_bits > 0) {
             if (signal.negative()) {
-                Group bit_position = 1 << (shift - 1);
-                auto mask = bit_position - 1;
-                auto validation = carried_bits ^ mask;
-                if (validation) {
-                    data.emplace_back(carried_bits | ~validation);
+                auto mask = (1 << (shift - 1)) - 1;
+                auto extension = carried_bits ^ mask;
+                if (extension) {
+                    data.emplace_back(carried_bits | ~extension);
                 }
             } else {
                 data.emplace_back(carried_bits);
@@ -320,20 +333,24 @@ namespace hausp {
     };
 
     inline BigInt& BigInt::operator>>=(intmax_t shift) {
-        if (shift < 0) return (*this) <<= std::abs(shift);
+        if (shift < 0) {
+            return (*this) <<= std::abs(shift);
+        }
+        
         uintmax_t group_shift = std::floor(shift / GROUP_BIT_SIZE);
         shift = shift % GROUP_BIT_SIZE;
+        auto shift_mask = (1 << shift) - 1;
 
         if (group_shift > data.size()) {
             data.clear();
             data.emplace_back(signal.value);
-        } else {
-            for (size_t i = 0; i < group_shift; ++i) {
-                data.pop_front();
-            }
+            return *this;
         }
-        
-        auto shift_mask = (1 << shift) - 1;
+
+        for (size_t i = 0; i < group_shift; ++i) {
+            data.pop_front();
+        }
+
         Group carried_bits = signal.value << (GROUP_BIT_SIZE - shift);
         for (intmax_t i = data.size() - 1; i >= 0; --i) {
             auto shifted_bits = data[i] & shift_mask;
@@ -342,7 +359,6 @@ namespace hausp {
         }
 
         shrink(); // Is it worth?
-
         return *this;
     };
 
