@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
 #include <sstream>
 #include <unordered_map>
-#include "big_int.hpp"
+#include "BigInt.hpp"
 
 class Tests : public ::testing::Test {};
 
-using hausp::big_int;
+using hausp::BigInt;
 
 const std::vector<std::string>& sampleNumbers() {
     static bool prepared = false;
@@ -30,8 +30,8 @@ inline std::string repeat(size_t v, size_t n) {
     return std::string(n, v + '0');
 }
 
-inline big_int fs(const std::string& s) {
-    return big_int::from_string(s);
+inline BigInt fs(const std::string& s) {
+    return BigInt::fromString(s);
 }
 
 TEST_F(Tests, SimpleConstruction) {
@@ -80,17 +80,17 @@ TEST_F(Tests, Inequalities) {
         fs("234954789127934229045978120945789")
     );
 
-    ASSERT_TRUE(big_int(-42) == big_int(-42));
-    ASSERT_TRUE(big_int(-42) < big_int(42));
-    ASSERT_TRUE(big_int(42) > big_int(-42));
+    ASSERT_TRUE(BigInt(-42) == BigInt(-42));
+    ASSERT_TRUE(BigInt(-42) < BigInt(42));
+    ASSERT_TRUE(BigInt(42) > BigInt(-42));
 
-    ASSERT_TRUE(big_int() == big_int(0));
-    ASSERT_TRUE(big_int(0) <= big_int(0));
-    ASSERT_TRUE(big_int(0) >= big_int(0));
-    ASSERT_TRUE(big_int(-1) < big_int(0));
-    ASSERT_TRUE(big_int(0) > big_int(-1));
-    ASSERT_FALSE(big_int(0) > big_int(0));
-    ASSERT_FALSE(big_int(0) < big_int(0));
+    ASSERT_TRUE(BigInt() == BigInt(0));
+    ASSERT_TRUE(BigInt(0) <= BigInt(0));
+    ASSERT_TRUE(BigInt(0) >= BigInt(0));
+    ASSERT_TRUE(BigInt(-1) < BigInt(0));
+    ASSERT_TRUE(BigInt(0) > BigInt(-1));
+    ASSERT_FALSE(BigInt(0) > BigInt(0));
+    ASSERT_FALSE(BigInt(0) < BigInt(0));
 
     auto n1 = fs("1323089548042380213098650892138790");
     auto n2 = fs("2109428218005820520572960106810672");
@@ -104,7 +104,7 @@ TEST_F(Tests, Inequalities) {
 }
 
 TEST_F(Tests, Shifts) {
-    std::unordered_map<size_t, big_int> powers = {
+    std::unordered_map<size_t, BigInt> powers = {
         {1, 2},
         {2, 4},
         {3, 8},
@@ -115,7 +115,7 @@ TEST_F(Tests, Shifts) {
         {200, fs("1606938044258990275541962092341162602522202993782792835301376")}
     };
 
-    auto n = big_int(1);
+    auto n = BigInt(1);
     for (size_t i = 1; i <= 200; i++) {
         n <<= 1;
         if (powers.count(i) > 0) {
@@ -157,10 +157,10 @@ TEST_F(Tests, Shifts) {
     ASSERT_EQ(a << 2 << -3 << -2 << 3, a);
     ASSERT_EQ(a >> 2 >> -3 >> -2 >> 3, a);
 
-    ASSERT_EQ(big_int(-2) << 31, big_int(-4294967296));
-    ASSERT_EQ(big_int(-2) >> 31, big_int(-1));
-    ASSERT_EQ(big_int(-2) >> 999999999, big_int(-1));
-    ASSERT_EQ(big_int(-2) << -999999999, big_int(-1));
+    ASSERT_EQ(BigInt(-2) << 31, BigInt(-4294967296));
+    ASSERT_EQ(BigInt(-2) >> 31, BigInt(-1));
+    ASSERT_EQ(BigInt(-2) >> 999999999, BigInt(-1));
+    ASSERT_EQ(BigInt(-2) << -999999999, BigInt(-1));
 
     ASSERT_EQ(
         a << 1 << 2 << 3 << 4 << 5 << 6 << 7 << 8 << 9 << 10
@@ -177,7 +177,7 @@ TEST_F(Tests, Shifts) {
 
 TEST_F(Tests, AddAndSub) {
     for (long i = -10; i <= 10; i++) {
-        auto value = big_int(i);
+        auto value = BigInt(i);
         ASSERT_EQ(value + 0, value);
         ASSERT_EQ(value - 0, value);
     }
@@ -200,12 +200,12 @@ TEST_F(Tests, AddAndSub) {
 
     ASSERT_EQ(
         fs("1" + repeat(0, 100)) - fs(repeat(9, 100)),
-        big_int(1)
+        BigInt(1)
     );
 
     ASSERT_EQ(
         fs(repeat(9, 100)) - fs("1" + repeat(0, 100)),
-        big_int(-1)
+        BigInt(-1)
     );
 
     ASSERT_EQ(
