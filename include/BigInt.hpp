@@ -11,8 +11,6 @@
 #include <regex>
 #include <tuple>
 
-#include "debug.hpp"
-
 namespace hausp {
     class BigInt {
         // Friend non-member operators
