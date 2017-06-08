@@ -214,53 +214,6 @@ TEST_F(Tests, AddAndSub) {
     );
 }
 
-TEST_F(Tests, MultAndDiv) {
-    for (long i = -10; i <= 10; i++) {
-        auto n = BigInt(i);
-        ASSERT_EQ(n * n, i * i);
-    }
-
-    auto a = fs("4098409820375475120983947658360293812094745981398749580238");
-    auto b = fs("8138293712938792187354957049128038575479103980193812038203");
-    auto c = fs("33354062874208333776063429386921166451576596124501770016498051490381316034098384194122679983367790328261517469832314");
-    ASSERT_EQ(a * b, c);
-    ASSERT_EQ(b * a, c);
-    ASSERT_EQ(-a * b, -c);
-    ASSERT_EQ(a * -b, -c);
-    ASSERT_EQ(-a * -b, c);
-
-    ASSERT_EQ(a * (a + b), a * a + a * b);
-    ASSERT_EQ(a * (a - b), a * a - a * b);
-    ASSERT_EQ((a + b) * (a - b), a * a - b * b);
-    ASSERT_EQ((a - b) * (a + b), a * a - b * b);
-    ASSERT_EQ((a + b) * (a + b), a * a + 2 * a * b + b * b);
-    ASSERT_EQ((a - b) * (a - b), a * a - 2 * a * b + b * b);
-
-    // ASSERT_EQ(BigInt(3) / 2, 1);
-    // ASSERT_EQ(BigInt(-3) / 2, -1);
-    // ASSERT_EQ(BigInt(3) / -2, -1);
-    // ASSERT_EQ(BigInt(-3) / -2, 1);
-    // ASSERT_EQ(a / 1, a);
-    // ASSERT_EQ(b / 1, b);
-    // ASSERT_EQ(c / 1, c);
-    // ASSERT_EQ(a / a, 1);
-    // ASSERT_EQ(b / b, 1);
-    // ASSERT_EQ(c / c, 1);
-    // ASSERT_EQ(c / a, b);
-    // ASSERT_EQ(c / b, a);
-    // ASSERT_EQ(-c / a, -b);
-    // ASSERT_EQ(c / -b, -a);
-    // ASSERT_EQ((a + c) / a, 1 + b);
-    // ASSERT_EQ(-(a + c) / -a, 1 + b);
-    // ASSERT_EQ((a - c) / a, 1 - b);
-    // ASSERT_ANY_THROW(BigInt(1) / 0);
-    // ASSERT_ANY_THROW(BigInt(-1) / 0);
-    // ASSERT_ANY_THROW(BigInt(0) / 0);
-    // ASSERT_ANY_THROW(a / 0);
-    // ASSERT_ANY_THROW(a / (a - a));
-    // ASSERT_ANY_THROW(b / (b * a - a * b));
-}
-
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
