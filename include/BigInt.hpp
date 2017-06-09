@@ -49,8 +49,10 @@ namespace hausp {
         GroupVector data = {0};
 
         template<typename Operation>
-        BigInt& carryOn(const BigInt&, bool, Operation);
-        BigInt& longMult(const BigInt&);
+        DoubleGroup carryOn(const BigInt&, DoubleGroup, const Operation&);
+        void add(const BigInt&);
+        void sub(const BigInt&);
+        void longMult(const BigInt&);
         void shrink();
 
         GroupVector toDecimal() const;
@@ -155,14 +157,12 @@ namespace hausp {
     void BigInt::twoComplement(GroupVector& data, Group signal) {
         DoubleGroup carry = 1;
         for (auto& segment : data) {
-            DoubleGroup complement = ~segment + carry;
+            DoubleGroup complement = carry + ~segment;
             segment = complement;
             carry = complement >> GROUP_BIT_SIZE;
         }
-        signal = ~signal + carry;
-        if (signal == 1) {
+        if ((~signal + carry) == 1) {
             data.emplace_back(signal);
-            signal = 0;
         }
     }
 
@@ -173,11 +173,12 @@ namespace hausp {
     }
 
     template<typename Operation>
-    BigInt& BigInt::carryOn(const BigInt& rhs, bool cmpl, Operation op) {
+    BigInt::DoubleGroup BigInt::carryOn(const BigInt& rhs,
+                                        DoubleGroup carry,
+                                        const Operation& op) {
         if (data.size() < rhs.data.size()) {
             data.insert(data.end(), rhs.data.size() - data.size(), 0);
         }
-        DoubleGroup carry = cmpl; // Uses DoubleGroup to coerce operation
         size_t i = 0;
         for (i = 0; i < rhs.data.size(); ++i) {
             DoubleGroup result = op(data[i], rhs.data[i], carry);
@@ -190,64 +191,65 @@ namespace hausp {
             carry = (result >> GROUP_BIT_SIZE) > 0;
             ++i;
         }
+        return carry;
+    }
 
-        if (cmpl) {
-            auto signal_update = op(0, 0, carry);
-            auto carry_out = (signal_update >> GROUP_BIT_SIZE) > 0;
-            Group value = signal_update;
-            if (carry_out ^ carry) {
-                data.emplace_back(carry);
-            }
-            if (value == GROUP_MAX) {
-                twoComplement(data, value);
-                signal = NEGATIVE;
-            } else if (value == 0) {
-                signal = POSITIVE;
-            }
-        } else if (carry > 0) {
+    inline void BigInt::add(const BigInt& rhs) {
+        auto carry = carryOn(rhs, 0, [](Group lhs, Group rhs, DoubleGroup c) {
+            return c + lhs + rhs;
+        });
+        if (carry > 0) {
             data.push_back(carry);
+        }
+    }
+
+    inline void BigInt::sub(const BigInt& rhs) {
+        auto carry = carryOn(rhs, 1, [](Group lhs, Group rhs, DoubleGroup c) {
+            return c + lhs + ~rhs;
+        });
+        if (carry == 0) {
+            twoComplement(data, GROUP_MAX);
+            signal = NEGATIVE;
+        } else {
+            signal = POSITIVE;
+        }
+    }
+
+    void BigInt::longMult(const BigInt& rhs) {
+        auto product = GroupVector(data.size() + rhs.data.size() + 1, 0);
+        for (size_t i = 0; i < rhs.data.size(); ++i) {
+            DoubleGroup carry = 0;
+            for (size_t j = 0; j < data.size(); ++j) {
+                DoubleGroup result = rhs.data[i];
+                result = product[i + j] + result * data[j] + carry;
+                product[i + j] = result;
+                carry = result >> GROUP_BIT_SIZE;
+            }
+            product[data.size() + i] += carry;
+        }
+        signal = signal != rhs.signal;
+        data = product;
+    }
+
+    inline BigInt& BigInt::operator+=(const BigInt& rhs) {
+        if (signal == rhs.signal) {
+            add(rhs);
+        } else {
+            sub(rhs);
+            signal = !signal;
         }
         shrink(); // Is it worth?
         return *this;
     }
 
-    inline BigInt& BigInt::operator+=(const BigInt& rhs) {
-        if (signal == rhs.signal) {
-            return carryOn(rhs, false,
-                [](Group lhs, Group rhs, DoubleGroup carry) {
-                    return carry + lhs + rhs;
-                }
-            );
-        } else if (signal && !rhs.signal) {
-            return carryOn(rhs, true,
-                [](Group lhs, Group rhs, DoubleGroup carry) {
-                    return carry + ~lhs + rhs;
-                }
-            );
-        } else {
-            return carryOn(rhs, true,
-                [](Group lhs, Group rhs, DoubleGroup carry) {
-                    auto result = carry + lhs + ~rhs;
-                    return result;
-                }
-            );
-        }
-    }
-
     inline BigInt& BigInt::operator-=(const BigInt& rhs) {
         if (signal == rhs.signal) {
-            return carryOn(rhs, true,
-                [](Group lhs, Group rhs, DoubleGroup carry) {
-                    return carry + lhs + ~rhs;
-                }
-            );
+            sub(rhs);
         } else {
-            return carryOn(rhs, false,
-                [](Group lhs, Group rhs, DoubleGroup carry) {
-                    return carry + lhs + rhs;
-                }
-            );
+            add(rhs);
         }
+        shrink(); // Is it worth?
+        return *this;
     }
 
     inline BigInt BigInt::operator-() const {
@@ -266,26 +268,10 @@ namespace hausp {
         return copy -= rhs;
     }
 
-    BigInt& BigInt::longMult(const BigInt& rhs) {
-        auto product = GroupVector(data.size() + rhs.data.size() + 1, 0);
-        for (size_t i = 0; i < rhs.data.size(); ++i) {
-            DoubleGroup carry = 0;
-            for (size_t j = 0; j < data.size(); ++j) {
-                DoubleGroup result = rhs.data[i];
-                result = product[i + j] + result * data[j] + carry;
-                product[i + j] = result;
-                carry = result >> GROUP_BIT_SIZE;
-            }
-            product[data.size() + i] += carry;
-        }
-        signal = signal != rhs.signal;
-        data = product;
+    inline BigInt& BigInt::operator*=(const BigInt& rhs) {
+        longMult(rhs);
         shrink();
         return *this;
-    }
-
-    inline BigInt& BigInt::operator*=(const BigInt& rhs) {
-        return longMult(rhs);
     }
 
     inline BigInt operator*(const BigInt& lhs, const BigInt& rhs) {
@@ -297,23 +283,19 @@ namespace hausp {
         if (shift < 0) {
             return (*this) >>= std::abs(shift);
         }
-        
         uintmax_t group_shift = std::floor(shift / GROUP_BIT_SIZE);
         data.insert(data.cbegin(), group_shift, 0);
         shift = shift % GROUP_BIT_SIZE;        
         auto shift_mask = ~((2 << (GROUP_BIT_SIZE - shift - 1)) - 1);
         Group carried_bits = 0;
-
         for (auto& digit : data) {
             auto shifted_bits = (digit & shift_mask) >> (GROUP_BIT_SIZE - shift);
             digit = (digit << shift) | carried_bits;
             carried_bits = shifted_bits;
         }
-
         if (carried_bits > 0) {
             data.emplace_back(carried_bits);
         }
-
         shrink(); // Is it worth?
         return *this;
     };
@@ -322,35 +304,27 @@ namespace hausp {
         if (shift < 0) {
             return (*this) <<= std::abs(shift);
         }
-        
         uintmax_t group_shift = std::floor(shift / GROUP_BIT_SIZE);
         shift = shift % GROUP_BIT_SIZE;
         auto shift_mask = (1 << shift) - 1;
-
         if (group_shift > data.size()) {
             data.clear();
             data.emplace_back(signal);
             return *this;
         }
-
         for (size_t i = 0; i < group_shift; ++i) {
             data.pop_front();
         }
-
-        // Group carried_bits = signal.value << (GROUP_BIT_SIZE - shift);
         Group carried_bits = 0;
         for (intmax_t i = data.size() - 1; i >= 0; --i) {
             auto shifted_bits = data[i] & shift_mask;
             data[i] = (data[i] >> shift) | carried_bits;
             carried_bits = shifted_bits << (GROUP_BIT_SIZE - shift);
         }
-
         shrink(); // Is it worth?
-
         if (signal && data.size() == 1 && data.back() == 0) {
             data.back() = 1;
         }
-
         return *this;
     };
 
