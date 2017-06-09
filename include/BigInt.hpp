@@ -28,8 +28,8 @@ namespace hausp {
         static constexpr auto GROUP_MAX = 0xffffffff;
         static constexpr auto GROUP_RADIX = 0x100000000;
         static constexpr auto GROUP_BIT_SIZE = 32;
-
-        enum Signal : bool { POSITIVE = false, NEGATIVE = true };
+        static constexpr auto POSITIVE = false;
+        static constexpr auto NEGATIVE = true;
      public:
         BigInt() = default;
         template<typename T, std::enable_if_t<std::is_unsigned<T>::value, int> = 0>
@@ -45,7 +45,7 @@ namespace hausp {
         BigInt& operator<<=(intmax_t);
         BigInt& operator>>=(intmax_t);
      private:
-        Signal signal = Signal::POSITIVE;
+        bool signal = POSITIVE;
         GroupVector data = {0};
 
         template<typename Operation>
@@ -77,7 +77,7 @@ namespace hausp {
         }
         BigInt integer;
         integer.data = convertBase(number_match[2]);
-        integer.signal = static_cast<Signal>(number_match[1] == "-");
+        integer.signal = number_match[1] == "-";
         integer.shrink();
         return integer;
     }
@@ -252,7 +252,7 @@ namespace hausp {
 
     inline BigInt BigInt::operator-() const {
         BigInt result = *this;
-        result.signal = static_cast<Signal>(!signal);
+        result.signal = !signal;
         return result;
     }
 
@@ -278,7 +278,7 @@ namespace hausp {
             }
             product[data.size() + i] += carry;
         }
-        signal = static_cast<Signal>(signal != rhs.signal);
+        signal = signal != rhs.signal;
         data = product;
         shrink();
         return *this;
@@ -409,7 +409,7 @@ namespace hausp {
 
     inline std::ostream& operator<<(std::ostream& out, const BigInt& number) {
         auto dec_data = number.toDecimal();
-        if (number.signal == BigInt::Signal::NEGATIVE) out << "-";
+        if (number.signal == BigInt::NEGATIVE) out << "-";
         auto last = dec_data.size() - 1;
         for (size_t i = last + 1; i > 0; --i) {
             auto index = i - 1;
